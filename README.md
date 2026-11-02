@@ -76,7 +76,44 @@ Uas Komputer Pararel/
 
 ---
 
-## 5. Cara Menjalankan Aplikasi
+## 5. Prasyarat & Cara Kompilasi dari Source Code
+
+### Prasyarat Sistem
+| Komponen | Keterangan |
+| :--- | :--- |
+| **GCC (MinGW-w64)** | Versi 8+ dengan dukungan OpenMP dan POSIX Threads (`-fopenmp -pthread`) |
+| **GNU Make** *(opsional)* | Untuk build otomatis via `Makefile` |
+| **Python 3.7+** | Untuk menjalankan Web Dashboard (Flask) dan membuat grafik (Matplotlib) |
+| **pip packages** | `flask`, `matplotlib`, `pandas`, `numpy` |
+
+### Instalasi Dependensi Python
+```bash
+pip install flask matplotlib pandas numpy
+```
+
+### Kompilasi Program C
+
+**Opsi A — Menggunakan Makefile (Direkomendasikan):**
+```bash
+make
+```
+> Akan menghasilkan file `monte_carlo_pi.exe` dengan optimasi `-O3`, OpenMP, dan Pthreads.
+
+**Opsi B — Kompilasi Manual via GCC:**
+```bash
+gcc -O3 -fopenmp -pthread main.c -o monte_carlo_pi.exe -lm
+```
+
+**Membersihkan Hasil Build:**
+```bash
+make clean
+```
+
+> **Catatan:** Jika GCC belum ada di PATH, file `run.bat` dan `run_web.bat` akan otomatis menambahkan path MinGW dan mengompilasi `main.c` saat pertama kali dijalankan.
+
+---
+
+## 6. Cara Menjalankan Aplikasi
 
 ### Cara 1: Web Dashboard Interaktif (Paling Direkomendasikan)
 1. Cukup klik dua kali **`run_web.bat`** (atau jalankan `run.bat` dan pilih opsi 1).
@@ -109,7 +146,7 @@ Grafik akan disimpan otomatis ke file `grafik_analisis_benchmark.png`.
 
 ---
 
-## 6. Hasil Pengujian Nyata (1 Miliar Sampel)
+## 7. Hasil Pengujian Nyata (1 Miliar Sampel)
 
 Spesifikasi Mesin Uji: 8 Logical Cores CPU, Windows 64-bit, GCC 14.2.0 OpenMP.
 
@@ -122,7 +159,7 @@ Spesifikasi Mesin Uji: 8 Logical Cores CPU, Windows 64-bit, GCC 14.2.0 OpenMP.
 
 ---
 
-## 7. Bukti Uji Tantangan Khusus: Race Condition vs Reduction
+## 8. Bukti Uji Tantangan Khusus: Race Condition vs Reduction
 
 Hasil pengujian eksekusi 20.000.000 titik dengan 4 thread:
 * **DENGAN Reduction:**
