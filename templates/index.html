@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monte Carlo Simulation & Parallel Benchmark | Estimasi Nilai π (10⁹ Sampel)</title>
+    <meta name="description" content="Dashboard Interaktif Simulasi Monte Carlo Estimasi Nilai PI dengan 1 Miliar Titik menggunakan Pemrograman Paralel OpenMP C.">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600;700&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="background-glow top-left"></div>
+    <div class="background-glow bottom-right"></div>
+
+    <div class="app-container">
+        <!-- HEADER -->
+        <header class="app-header">
+            <div class="header-brand">
+                <div>
+                    <h1 class="brand-title">Monte Carlo Pi Simulation</h1>
+                    <p class="brand-subtitle">UTS Komputer Paralel &bull; Opsi C: 1 Miliar Titik ($10^9$) &bull; OpenMP Engine</p>
+                </div>
+            </div>
+
+            <div class="header-badges">
+                <div class="status-badge" id="cpuBadge">
+                    <span class="badge-dot pulse"></span>
+                    <i class="fa-solid fa-server"></i>
+                    <span id="cpuInfoText">Memeriksa CPU...</span>
+                </div>
+                <div class="tech-badge">
+                    <i class="fa-solid fa-shield-halved"></i>
+                    <span>Thread-Safe Xorshift128+</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- NAVIGATION TABS -->
+        <nav class="app-nav">
+            <button class="nav-tab active" id="tabBtnSimulation" onclick="switchTab('simulation')">
+                <i class="fa-solid fa-play"></i> Live Simulator
+            </button>
+            <button class="nav-tab" id="tabBtnBenchmark" onclick="switchTab('benchmark')">
+                <i class="fa-solid fa-chart-line"></i> Benchmark 10⁹ Titik
+            </button>
+            <button class="nav-tab" id="tabBtnRaceDemo" onclick="switchTab('race')">
+                <i class="fa-solid fa-triangle-exclamation"></i> Lab Race Condition
+            </button>
+        </nav>
+
+        <!-- MAIN CONTENT AREA -->
+        <main class="app-main">
+
+            <!-- TAB 1: LIVE SIMULATION -->
+            <section id="tabSimulation" class="tab-content active">
+                <div class="grid-2col">
+                    <!-- Left Column: Controls & Real-time Metrics -->
+                    <div class="card control-card">
+                        <div class="card-header">
+                            <h2 class="card-title"><i class="fa-solid fa-sliders"></i> Parameter Simulasi</h2>
+                            <span class="badge-pill">OpenMP C Backend</span>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="threadRange" class="form-label">
+                                <span>Alokasi Jumlah Thread:</span>
+                                <span class="highlight-val" id="threadValue">4 Threads</span>
+                            </label>
+                            <input type="range" id="threadRange" min="1" max="16" value="4" class="slider" oninput="updateThreadUI(this.value)">
+                            <div class="quick-buttons">
+                                <button type="button" class="btn-chip" onclick="setThreadPreset(1)">1 Core</button>
+                                <button type="button" class="btn-chip" onclick="setThreadPreset(2)">2 Cores</button>
+                                <button type="button" class="btn-chip active" onclick="setThreadPreset(4)">4 Cores</button>
+                                <button type="button" class="btn-chip" onclick="setThreadPreset(8)">8 Cores</button>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">
+                                <span>Jumlah Titik Sampel (N):</span>
+                                <span class="highlight-val" id="sampleCountDisplay">10,000,000 Titik</span>
+                            </label>
+                            <div class="quick-buttons sample-presets">
+                                <button type="button" class="btn-chip" onclick="setSamplePreset(1000000, '1 Juta')">1M</button>
+                                <button type="button" class="btn-chip active" onclick="setSamplePreset(10000000, '10 Juta')">10M</button>
+                                <button type="button" class="btn-chip" onclick="setSamplePreset(100000000, '100 Juta')">100M</button>
+                                <button type="button" class="btn-chip gold" onclick="setSamplePreset(1000000000, '1 Miliar (10⁹)')">★ 1 Miliar</button>
+                            </div>
+                            <input type="hidden" id="samplesInput" value="10000000">
+                        </div>
+
+                        <button id="btnRunSimulation" class="btn-primary" onclick="runSimulation()">
+                            <span class="btn-text"><i class="fa-solid fa-play"></i> Jalankan Simulasi OpenMP</span>
+                            <span class="spinner" id="runSpinner" style="display: none;"></span>
+                        </button>
+
+                        <div class="metrics-grid">
+                            <div class="metric-box">
+                                <span class="metric-label">Estimasi Nilai π</span>
+                                <span class="metric-value font-mono cyan" id="metricPiEst">3.141592...</span>
+                                <span class="metric-sub" id="metricPiError">Error: ~0.00000</span>
+                            </div>
+                            <div class="metric-box">
+                                <span class="metric-label">Waktu Eksekusi</span>
+                                <span class="metric-value font-mono emerald" id="metricTime">0.000 s</span>
+                                <span class="metric-sub" id="metricSpeedup">Speedup: -</span>
+                            </div>
+                            <div class="metric-box">
+                                <span class="metric-label">Titik Dalam Lingkaran</span>
+                                <span class="metric-value font-mono purple" id="metricInside">0 / 0</span>
+                                <span class="metric-sub" id="metricRatio">Rasio: 0.0000%</span>
+                            </div>
+                            <div class="metric-box">
+                                <span class="metric-label">Throughput Komputasi</span>
+                                <span class="metric-value font-mono amber" id="metricThroughput">0 Mpts/s</span>
+                                <span class="metric-sub">Kecepatan Core</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Column: Interactive Canvas Visualizer -->
+                    <div class="card visualizer-card">
+                        <div class="card-header">
+                            <h2 class="card-title"><i class="fa-solid fa-circle-notch"></i> Visualisasi Geometri Kuadran</h2>
+                            <div class="legend-group">
+                                <span class="legend-item"><span class="dot-sample cyan"></span> Di Dalam ($x^2+y^2 \le 1$)</span>
+                                <span class="legend-item"><span class="dot-sample red"></span> Di Luar</span>
+                            </div>
+                        </div>
+
+                        <div class="canvas-wrapper">
+                            <canvas id="monteCarloCanvas" width="460" height="460"></canvas>
+                            <div class="canvas-overlay-stats">
+                                <div class="stat-pill"><i class="fa-solid fa-bullseye"></i> Target $\pi$: 3.14159265</div>
+                                <div class="stat-pill highlight" id="overlayConvergence">Akurasi: 99.99%</div>
+                            </div>
+                        </div>
+
+                        <div class="visualizer-actions">
+                            <button class="btn-secondary" onclick="animateRandomScatter()">
+                                <i class="fa-solid fa-shuffle"></i> Acak Ulang Sampel Visual (2.500 Titik)
+                            </button>
+                            <span class="visual-note">*Canvas merender 2.500 sampel representatif untuk interaktivitas visual instan.</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 2: BENCHMARK SUITE (10^9 SAMPLES) -->
+            <section id="tabBenchmark" class="tab-content">
+                <div class="card benchmark-header-card">
+                    <div class="benchmark-info">
+                        <h2><i class="fa-solid fa-gauge-high"></i> Pengujian Benchmark Skalabilitas Paralel (10⁹ Titik)</h2>
+                        <p>Menguji kinerja program secara otomatis pada <strong>1 Thread, 2 Threads, 4 Threads, dan 8 Threads</strong> untuk mengukur <em>Speedup</em> dan <em>Efisiensi</em> komputasi paralel sesuai Hukum Amdahl.</p>
+                    </div>
+                    <button id="btnRunBenchmark" class="btn-primary gold" onclick="runBenchmarkSuite()">
+                        <span class="btn-text"><i class="fa-solid fa-bolt"></i> Mulai Benchmark 10⁹ Sampel</span>
+                        <span class="spinner" id="benchSpinner" style="display: none;"></span>
+                    </button>
+                </div>
+
+                <div class="grid-2col charts-row">
+                    <!-- Chart 1: Speedup -->
+                    <div class="card chart-card">
+                        <div class="card-header">
+                            <h3 class="card-title"><i class="fa-solid fa-arrow-trend-up"></i> Kurva Speedup vs Ideal Amdahl</h3>
+                            <span class="badge-pill">Percepatan (x)</span>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="speedupChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Chart 2: Execution Time -->
+                    <div class="card chart-card">
+                        <div class="card-header">
+                            <h3 class="card-title"><i class="fa-solid fa-stopwatch"></i> Waktu Eksekusi (Detik)</h3>
+                            <span class="badge-pill">Semakin Rendah Semakin Cepat</span>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="timeChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Table Results -->
+                <div class="card table-card">
+                    <div class="card-header">
+                        <h3 class="card-title"><i class="fa-solid fa-table"></i> Data Tabel Evaluasi Benchmark</h3>
+                        <button class="btn-secondary small" onclick="exportTableCSV()"><i class="fa-solid fa-download"></i> Ekspor CSV</button>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="benchmark-table" id="benchmarkTable">
+                            <thead>
+                                <tr>
+                                    <th>Threads</th>
+                                    <th>Total Sampel</th>
+                                    <th>Titik di Lingkaran</th>
+                                    <th>Estimasi Nilai π</th>
+                                    <th>Error Mutlak</th>
+                                    <th>Waktu (detik)</th>
+                                    <th>Speedup</th>
+                                    <th>Efisiensi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="benchmarkTableBody">
+                                <!-- Populated dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 3: RACE CONDITION LAB -->
+            <section id="tabRaceDemo" class="tab-content">
+                <div class="card alert-banner">
+                    <div class="alert-icon">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                    </div>
+                    <div>
+                        <h2 class="alert-title">Laboratorium Bukti Tantangan Khusus: Race Condition vs Reduction</h2>
+                        <p class="alert-desc">UAS mensyaratkan penggunaan <strong>OpenMP Reduction</strong>. Halaman ini mendemonstrasikan secara nyata apa yang terjadi jika komputasi paralel dijalankan <strong>tanpa reduction</strong> (terjadi tabrakan memori konkurensi).</p>
+                    </div>
+                    <button id="btnRunRaceDemo" class="btn-danger" onclick="runRaceDemo()">
+                        <span class="btn-text"><i class="fa-solid fa-fire"></i> Uji Tabrakan Memori Sekarang</span>
+                        <span class="spinner" id="raceSpinner" style="display: none;"></span>
+                    </button>
+                </div>
+
+                <div class="grid-2col comparison-row">
+                    <!-- Safe Card -->
+                    <div class="card comparison-card safe">
+                        <div class="comp-badge safe"><i class="fa-solid fa-check"></i> Mode DENGAN OpenMP Reduction (Aman)</div>
+                        <h3 class="comp-title">Arsitektur Bebas Tabrakan</h3>
+                        <p class="comp-desc">Setiap thread memiliki register privat sendiri. Nilai diakumulasikan secara atomik di akhir loop parallel.</p>
+
+                        <div class="comp-stat-box">
+                            <div class="comp-stat-item">
+                                <span class="label">Titik Masuk Terhitung:</span>
+                                <span class="val font-mono emerald" id="safePoints">-</span>
+                            </div>
+                            <div class="comp-stat-item">
+                                <span class="label">Estimasi Nilai π:</span>
+                                <span class="val font-mono emerald" id="safePi">-</span>
+                            </div>
+                            <div class="comp-stat-item">
+                                <span class="label">Error Mutlak:</span>
+                                <span class="val font-mono" id="safeError">-</span>
+                            </div>
+                            <div class="comp-stat-item">
+                                <span class="label">Status Integritas Data:</span>
+                                <span class="val status-ok"><i class="fa-solid fa-circle-check"></i> 100% Akurat (No Loss)</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Unsafe Card -->
+                    <div class="card comparison-card unsafe">
+                        <div class="comp-badge unsafe"><i class="fa-solid fa-bug"></i> Mode TANPA Reduction (Race Condition Terjadi)</div>
+                        <h3 class="comp-title">Kerusakan Data Akumulator</h3>
+                        <p class="comp-desc">Banyak core menulis secara bersamaan ke variabel global <code>total_inside++</code>, menyebabkan data tertimpa dan hilang.</p>
+
+                        <div class="comp-stat-box">
+                            <div class="comp-stat-item">
+                                <span class="label">Titik Masuk Terhitung:</span>
+                                <span class="val font-mono crimson" id="unsafePoints">-</span>
+                            </div>
+                            <div class="comp-stat-item">
+                                <span class="label">Estimasi Nilai π:</span>
+                                <span class="val font-mono crimson" id="unsafePi">-</span>
+                            </div>
+                            <div class="comp-stat-item">
+                                <span class="label">Error Mutlak:</span>
+                                <span class="val font-mono crimson" id="unsafeError">-</span>
+                            </div>
+                            <div class="comp-stat-item">
+                                <span class="label">Status Integritas Data:</span>
+                                <span class="val status-corrupt" id="raceLossStatus"><i class="fa-solid fa-triangle-exclamation"></i> Menunggu Uji...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card code-explanation-card">
+                    <h3 class="card-title"><i class="fa-solid fa-code"></i> Perbedaan Implementasi Kode di C (OpenMP)</h3>
+                    <div class="grid-2col code-blocks">
+                        <div>
+                            <h4 class="code-label safe"><i class="fa-solid fa-check"></i> Kode Aman (Wajib Digunakan)</h4>
+                            <pre><code><span class="c-keyword">#pragma omp parallel num_threads</span>(threads) <span class="c-accent">reduction(+:total_inside)</span>
+{
+    <span class="c-type">xor128_state</span> rng; <span class="c-comment">// RNG privat per thread</span>
+    <span class="c-keyword">#pragma omp for schedule</span>(static)
+    <span class="c-keyword">for</span> (<span class="c-type">uint64_t</span> i = <span class="c-num">0</span>; i &lt; N; i++) {
+        <span class="c-keyword">if</span> (x*x + y*y &lt;= <span class="c-num">1.0</span>) {
+            total_inside++; <span class="c-comment">// AMAN: Masuk register lokal thread</span>
+        }
+    }
+}</code></pre>
+                        </div>
+                        <div>
+                            <h4 class="code-label unsafe"><i class="fa-solid fa-xmark"></i> Kode Berbahaya (Race Condition)</h4>
+                            <pre><code><span class="c-type">volatile uint64_t</span> unsafe_inside = <span class="c-num">0</span>;
+<span class="c-keyword">#pragma omp parallel num_threads</span>(threads)
+{
+    <span class="c-keyword">#pragma omp for schedule</span>(static)
+    <span class="c-keyword">for</span> (<span class="c-type">uint64_t</span> i = <span class="c-num">0</span>; i &lt; N; i++) {
+        <span class="c-keyword">if</span> (x*x + y*y &lt;= <span class="c-num">1.0</span>) {
+            unsafe_inside++; <span class="c-comment">// RUSAK: 4 thread menimpa memori bersamaan!</span>
+        }
+    }
+}</code></pre>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+
+        <!-- FOOTER -->
+        <footer class="app-footer">
+            <p>Uts Komputer Pararel Sistem Simulasi Monte Carlo</p>
+        </footer>
+    </div>
+
+    <!-- Application Javascript -->
+    <script src="/static/app.js"></script>
+</body>
+</html>
